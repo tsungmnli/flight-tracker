@@ -331,6 +331,24 @@ def add_route_pair(airport_a: str, airport_b: str) -> None:
     conn.close()
 
 
+def add_route(origin: str, destination: str) -> None:
+    """양방향이 아닌, origin -> destination 한쪽 방향만 추가한다."""
+    now_iso = datetime.now(timezone.utc).isoformat()
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO routes (origin, destination, active, added_at)
+        VALUES (%s, %s, 1, %s)
+        ON DUPLICATE KEY UPDATE active = 1
+        """,
+        (origin, destination, now_iso),
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
 def deactivate_route(origin: str, destination: str) -> None:
     conn = get_conn()
     cur = conn.cursor()
