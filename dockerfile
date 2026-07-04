@@ -16,8 +16,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends xvfb \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 코드 복사
-COPY src/app.py src/db.py src/manage_routes.py src/scheduler.py ./
+# 코드 복사 (src/ 폴더 안에 있음)
+COPY src/app.py src/db.py src/manage_routes.py src/scheduler.py src/market_context.py ./
 
 # 시작 스크립트 복사 + 실행권한 부여
 COPY entrypoint.sh /entrypoint.sh

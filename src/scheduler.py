@@ -15,6 +15,7 @@ import time
 from pathlib import Path
 
 import src.db as db
+import src.market_context as market_context
 
 APP_PATH = Path(__file__).parent / "app.py"
 HORIZON_DAYS = 365
@@ -65,6 +66,7 @@ def main() -> None:
     db.init_db()
     db.init_routes_table()
     db.init_tracked_dates_table()
+    db.init_market_context_table()
 
     last_sync_at = 0.0
 
@@ -75,6 +77,7 @@ def main() -> None:
             if not routes:
                 print("[!] 등록된 노선이 없습니다. manage_routes.py add로 노선을 추가하세요.")
             resync(routes)
+            market_context.sync_daily_market_context()  # 오늘 것이 이미 있으면 내부에서 스킵함
             last_sync_at = now
 
         target = db.get_next_tracked_date()

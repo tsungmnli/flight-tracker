@@ -10,12 +10,22 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-p${MYSQL_ROOT_PASSWORD}",
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
     ports:
-      - "127.0.0.1:3306:3306"
+      - "127.0.0.1:3307:3306"
 
   scheduler:
     build: .
@@ -24,10 +34,11 @@ services:
       mysql:
         condition: service_healthy
     environment:
-      FLIGHTS_DB_HOST: mysql        # compose 네트워크 안에서는 서비스명이 곧 호스트명
+      FLIGHTS_DB_HOST: mysql
       FLIGHTS_DB_USER: ${FLIGHTS_DB_USER}
       FLIGHTS_DB_PASSWORD: ${FLIGHTS_DB_PASSWORD}
       FLIGHTS_DB_NAME: ${FLIGHTS_DB_NAME}
+      EIA_API_KEY: ${EIA_API_KEY}
     volumes:
       - playwright_profile:/app/playwright_profile
 

@@ -489,6 +489,87 @@ def count_stale_tracked_dates(stale_hours: float = 30.0) -> int:
     return n
 
 
+# ── 시장 지표 (market_context): 날짜별 환율/유가 ────────────────────────────
+
+def init_market_context_table():
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS market_context (
+            context_date VARCHAR(10) PRIMARY KEY,
+            krw_usd_rate DECIMAL(12,4),
+            oil_price_usd DECIMAL(12,4),
+            oil_price_30d_avg DECIMAL(12,4),
+            fetched_at VARCHAR(40) NOT NULL
+        ) ENGINE=InnoDB
+    """)
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def has_market_context_for_today() -> bool:
+    today = datetime.now(KST).date().isoformat()
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT 1 FROM market_context WHERE context_date = %s", (today,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return row is not None
+
+
+def get_recent_oil_prices(days: int = 30) -> list[float]:
+    """최근 N일간 저장된 oil_price_usd 값들을 반환한다 (30일 평균 계산용)."""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT oil_price_usd FROM market_context
+        WHERE oil_price_usd IS NOT NULL
+        ORDER BY context_date DESC
+        LIMIT %s
+        """,
+        (days,),
+    )
+    rows = [float(r[0]) for r in cur.fetchall()]
+    cur.close()
+    conn.close()
+    return rows
+
+
+def upsert_market_context(context_date: str, krw_usd_rate: float | None,
+                           oil_price_usd: float | None, oil_price_30d_avg: float | None) -> None:
+    now_iso = datetime.now(timezone.utc).isoformat()
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO market_context (context_date, krw_usd_rate, oil_price_usd, oil_price_30d_avg, fetched_at)
+        VALUES (%s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+            krw_usd_rate = VALUES(krw_usd_rate),
+            oil_price_usd = VALUES(oil_price_usd),
+            oil_price_30d_avg = VALUES(oil_price_30d_avg),
+            fetched_at = VALUES(fetched_at)
+        """,
+        (context_date, krw_usd_rate, oil_price_usd, oil_price_30d_avg, now_iso),
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def get_market_context(context_date: str) -> dict | None:
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("SELECT * FROM market_context WHERE context_date = %s", (context_date,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return row
+
+
 if __name__ == "__main__":
     init_db()
     init_routes_table()

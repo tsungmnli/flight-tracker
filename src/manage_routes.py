@@ -15,7 +15,7 @@
 
 import argparse
 
-import src.db as db
+import db
 
 
 def main() -> None:

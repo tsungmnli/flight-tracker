@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from playwright.async_api import async_playwright, Response
 
-import src.db as db
+import db
 
 # ── 설정값 ────────────────────────────────────────────────────────────────
 
