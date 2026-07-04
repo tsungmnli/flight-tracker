@@ -1,0 +1,46 @@
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${FLIGHTS_DB_NAME}
+      MYSQL_USER: ${FLIGHTS_DB_USER}
+      MYSQL_PASSWORD: ${FLIGHTS_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-p${MYSQL_ROOT_PASSWORD}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # ports:
+    #   - "3306:3306"
+
+  scheduler:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      FLIGHTS_DB_HOST: mysql
+      FLIGHTS_DB_USER: ${FLIGHTS_DB_USER}
+      FLIGHTS_DB_PASSWORD: ${FLIGHTS_DB_PASSWORD}
+      FLIGHTS_DB_NAME: ${FLIGHTS_DB_NAME}
+    volumes:
+      - playwright_profile:/app/playwright_profile
+
+volumes:
+  mysql_data:
+  playwright_profile:
