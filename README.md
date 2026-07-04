@@ -17,6 +17,9 @@ Playwright로 브라우저를 직접 제어해 데이터를 가져오며, 전체
 
 ## 사전 준비
 
+- Docker / Docker Compose 설치되어 있을 것
+- 이 저장소를 홈서버에 clone
+
 ```bash
 git clone https://github.com/tsungmnli/flight-tracker.git
 cd flight-tracker
@@ -36,8 +39,6 @@ FLIGHTS_DB_USER=<원하는 사용자명>
 FLIGHTS_DB_PASSWORD=<원하는 비밀번호>
 MYSQL_ROOT_PASSWORD=<원하는 root 비밀번호>
 ```
-
-`.env`는 `.gitignore`에 포함되어 있어 git에 올라가지 않습니다. 절대 커밋하지 마세요.
 
 ## 2. 빌드 및 실행
 
@@ -67,6 +68,9 @@ docker compose logs -f scheduler
 # 공항 쌍을 양방향으로 추가 (기본 365일 범위)
 docker compose exec scheduler python manage_routes.py add ICN NRT
 
+# 한쪽 방향만 추가
+docker compose exec scheduler python manage_routes.py add-one ICN NRT
+
 # 추적 범위를 다르게 지정하고 싶을 때
 docker compose exec scheduler python manage_routes.py add ICN NRT --horizon-days 180
 
@@ -95,7 +99,8 @@ docker compose restart scheduler
 | 스케줄러만 재시작                   | `docker compose restart scheduler`                                                          |
 | 실시간 로그 보기                    | `docker compose logs -f scheduler`                                                          |
 | 컨테이너 상태 확인 (중지된 것 포함) | `docker compose ps -a`                                                                      |
-| 노선 추가                           | `docker compose exec scheduler python manage_routes.py add A B`                             |
+| 노선 추가 (양방향)                  | `docker compose exec scheduler python manage_routes.py add A B`                             |
+| 노선 추가 (한쪽 방향만)             | `docker compose exec scheduler python manage_routes.py add-one A B`                         |
 | 노선 목록                           | `docker compose exec scheduler python manage_routes.py list`                                |
 | 노선 중단                           | `docker compose exec scheduler python manage_routes.py deactivate A B`                      |
 | DB 완전 초기화 (주의)               | `docker compose down && docker volume rm flight-tracker_mysql_data && docker compose up -d` |
