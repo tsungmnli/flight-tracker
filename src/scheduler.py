@@ -14,8 +14,8 @@ import sys
 import time
 from pathlib import Path
 
-import src.db as db
-import src.market_context as market_context
+import db
+import market_context
 
 APP_PATH = Path(__file__).parent / "app.py"
 HORIZON_DAYS = 365
