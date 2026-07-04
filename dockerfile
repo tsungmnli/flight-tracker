@@ -15,4 +15,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py db.py manage_routes.py scheduler.py ./
 
 # scheduler.py가 상시 실행되는 메인 프로세스
-CMD ["python3", "scheduler.py"]
+CMD ["python3", "-u", "scheduler.py"]
