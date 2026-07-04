@@ -14,7 +14,7 @@ import sys
 import time
 from pathlib import Path
 
-import db
+import src.db as db
 
 APP_PATH = Path(__file__).parent / "app.py"
 HORIZON_DAYS = 365

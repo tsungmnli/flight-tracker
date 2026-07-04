@@ -17,7 +17,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 코드 복사
-COPY app.py db.py manage_routes.py scheduler.py ./
+COPY src/app.py src/db.py src/manage_routes.py src/scheduler.py ./
 
 # 시작 스크립트 복사 + 실행권한 부여
 COPY entrypoint.sh /entrypoint.sh
