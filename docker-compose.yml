@@ -28,7 +28,9 @@ services:
       - "127.0.0.1:3306:3306"
 
   scheduler:
-    build: .
+    build:
+      context: .
+      dockerfile: docker/scheduler.dockerfile
     restart: unless-stopped
     depends_on:
       mysql:
@@ -41,6 +43,18 @@ services:
       EIA_API_KEY: ${EIA_API_KEY}
     volumes:
       - playwright_profile:/app/playwright_profile
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.dockerfile
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
 
 volumes:
   mysql_data:

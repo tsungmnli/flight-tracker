@@ -15,7 +15,7 @@
 
 import argparse
 
-import db
+import shared.db as db
 
 
 def main() -> None:

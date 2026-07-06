@@ -14,7 +14,7 @@ import urllib.request
 import json
 from datetime import datetime, timezone, timedelta
 
-import db
+from shared import db
 
 KST = timezone(timedelta(hours=9))
 
