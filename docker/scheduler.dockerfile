@@ -19,5 +19,8 @@ COPY services/scheduler/ ./services/scheduler/
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+COPY manage-routes /usr/local/bin/manage-routes
+RUN chmod +x /usr/local/bin/manage-routes
+
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python3", "-u", "services/scheduler/scheduler.py"]
