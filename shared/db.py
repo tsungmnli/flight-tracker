@@ -379,6 +379,121 @@ def get_all_routes() -> list[dict]:
     return rows
 
 
+def get_available_routes(origin: str | None = None, active_only: bool = True) -> list[dict]:
+    """routes 테이블 + flight_prices의 첫/마지막 수집 시각을 합쳐서 반환한다."""
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+
+    where_clauses = []
+    params: list = []
+    if active_only:
+        where_clauses.append("r.active = 1")
+    if origin:
+        where_clauses.append("r.origin = %s")
+        params.append(origin)
+    where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+
+    cur.execute(
+        f"""
+        SELECT
+            r.origin,
+            r.destination,
+            r.active,
+            MIN(fp.collected_at) AS first_price_collected_at,
+            MAX(fp.collected_at) AS last_price_collected_at
+        FROM routes r
+        LEFT JOIN flight_prices fp
+            ON fp.origin = r.origin AND fp.destination = r.destination
+        {where_sql}
+        GROUP BY r.origin, r.destination, r.active
+        ORDER BY r.origin, r.destination
+        """,
+        params,
+    )
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
+
+
+def get_latest_offers(origin: str, destination: str, depart_date: str) -> list[dict]:
+    """가장 최근 search_run 하나에 속한 개별 오퍼(항공편) 목록을 반환한다."""
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    cur.execute(
+        """
+        SELECT * FROM flight_prices
+        WHERE origin = %s AND destination = %s AND depart_date = %s
+          AND search_run_id = (
+              SELECT MAX(search_run_id) FROM flight_prices
+              WHERE origin = %s AND destination = %s AND depart_date = %s
+          )
+        """,
+        (origin, destination, depart_date, origin, destination, depart_date),
+    )
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
+
+
+def get_all_time_low(origin: str, destination: str) -> dict | None:
+    """해당 노선(출발일 무관) 전체 통틀어 역대 최저가 1건."""
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    cur.execute(
+        """
+        SELECT price_krw, collected_at, depart_date
+        FROM flight_prices
+        WHERE origin = %s AND destination = %s AND price_krw IS NOT NULL
+        ORDER BY price_krw ASC
+        LIMIT 1
+        """,
+        (origin, destination),
+    )
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return row
+
+
+def get_market_context_range(date_from: str | None = None, date_to: str | None = None) -> list[dict]:
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    if date_from and date_to:
+        cur.execute(
+            "SELECT * FROM market_context WHERE context_date BETWEEN %s AND %s ORDER BY context_date",
+            (date_from, date_to),
+        )
+    elif date_from:
+        cur.execute(
+            "SELECT * FROM market_context WHERE context_date >= %s ORDER BY context_date",
+            (date_from,),
+        )
+    elif date_to:
+        cur.execute(
+            "SELECT * FROM market_context WHERE context_date <= %s ORDER BY context_date",
+            (date_to,),
+        )
+    else:
+        cur.execute("SELECT * FROM market_context ORDER BY context_date")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
+
+
+def get_last_collection_success_at() -> str | None:
+    """tracked_dates에 기록된 마지막 수집 성공 시각(가장 최근 값)을 반환한다."""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT MAX(last_collected_at) FROM tracked_dates")
+    (val,) = cur.fetchone()
+    cur.close()
+    conn.close()
+    return val
+
+
 # ── 추적 스케줄 (tracked_dates) ──────────────────────────────────────────
 
 def init_tracked_dates_table():
