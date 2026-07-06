@@ -54,6 +54,10 @@ services:
       mysql:
         condition: service_healthy
     environment:
+      FLIGHTS_DB_HOST: mysql
+      FLIGHTS_DB_USER: ${FLIGHTS_DB_USER}
+      FLIGHTS_DB_PASSWORD: ${FLIGHTS_DB_PASSWORD}
+      FLIGHTS_DB_NAME: ${FLIGHTS_DB_NAME}
       ADMIN_API_KEY: ${ADMIN_API_KEY}
 
 volumes:
