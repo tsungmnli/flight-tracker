@@ -7,7 +7,6 @@ import asyncio
 import re
 import json
 import urllib.parse
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from playwright.async_api import async_playwright, Response
@@ -35,17 +34,6 @@ def build_search_url(
         query += " one way"
     url = "https://www.google.com/travel/flights?q=" + urllib.parse.quote(query) + "&hl=en-US&curr=USD"
     return url
-
-
-def fetch_usd_krw_rate() -> float:
-    """
-    1 USD당 KRW 환율을 조회한다. price_krw를 price_usd로 환산하는 데 쓰인다.
-    무료 API(키 불필요)를 쓰며, 실패 시 예외를 던진다 -> 호출부에서 실패 처리를
-    결정하게 한다 (여기서는 price_usd를 그냥 None으로 두고 계속 진행).
-    """
-    with urllib.request.urlopen("https://open.er-api.com/v6/latest/USD", timeout=10) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-    return float(data["rates"]["KRW"])
 
 
 TARGET_URL_PATTERN = re.compile(
@@ -419,11 +407,12 @@ async def main() -> None:
     target_url = build_search_url(args.origin, args.destination, args.depart, args.return_date)
     collected_at = datetime.now(timezone.utc).isoformat()
 
-    try:
-        usd_krw_rate = fetch_usd_krw_rate()
-    except Exception as e:
-        print(f"[!] 환율 조회 실패, price_usd는 저장되지 않습니다: {e}")
-        usd_krw_rate = None
+    # 환율은 market_context.py가 하루 1회 받아와 저장해둔 값을 그대로 읽어 쓴다.
+    # (검색마다 API를 다시 호출하지 않음 — market_context 테이블과 중복 호출 방지)
+    usd_krw_rate = db.get_latest_krw_usd_rate()
+    if usd_krw_rate is None:
+        print("[!] 저장된 환율이 없어 price_usd는 저장되지 않습니다. "
+              "market_context.py가 최소 한 번은 실행되어야 합니다.")
 
     # OUTPUT_DIR.mkdir(exist_ok=True)
     db.init_db()
@@ -432,10 +421,8 @@ async def main() -> None:
         query_origin=args.origin,
         query_destination=args.destination,
         query_depart_date=args.depart,
-        query_return_date=args.return_date,
         target_url=target_url,
         run_at=collected_at,
-        usd_krw_rate=usd_krw_rate,
     )
 
     # 같은 itinerary가 (가격 미확정 -> 확정) 형태로 여러 번 응답에 나뉘어 올 수 있어서,

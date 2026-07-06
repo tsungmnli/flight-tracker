@@ -64,9 +64,7 @@ def init_db():
             query_origin VARCHAR(64) NOT NULL,
             query_destination VARCHAR(64) NOT NULL,
             query_depart_date VARCHAR(10) NOT NULL,
-            query_return_date VARCHAR(10),
-            target_url TEXT,
-            usd_krw_rate DOUBLE
+            target_url TEXT
         ) ENGINE=InnoDB
     """)
 
@@ -96,8 +94,12 @@ def init_db():
 
     if not _column_exists(conn, "flight_prices", "price_usd"):
         cur.execute("ALTER TABLE flight_prices ADD COLUMN price_usd DOUBLE")
-    if not _column_exists(conn, "search_runs", "usd_krw_rate"):
-        cur.execute("ALTER TABLE search_runs ADD COLUMN usd_krw_rate DOUBLE")
+    # search_runs에 항상 NULL로만 쌓이던 컬럼(편도 전용 설계라 return_date 미사용)과
+    # market_context 테이블과 중복 저장되던 usd_krw_rate 컬럼을 정리한다.
+    if _column_exists(conn, "search_runs", "query_return_date"):
+        cur.execute("ALTER TABLE search_runs DROP COLUMN query_return_date")
+    if _column_exists(conn, "search_runs", "usd_krw_rate"):
+        cur.execute("ALTER TABLE search_runs DROP COLUMN usd_krw_rate")
 
     if not _index_exists(conn, "flight_prices", "idx_route_date"):
         cur.execute("CREATE INDEX idx_route_date ON flight_prices (origin, destination, depart_date)")
@@ -124,10 +126,8 @@ def create_search_run(
     query_origin: str,
     query_destination: str,
     query_depart_date: str,
-    query_return_date: str | None,
     target_url: str,
     run_at: str | None = None,
-    usd_krw_rate: float | None = None,
 ) -> int:
     run_at = run_at or datetime.now(timezone.utc).isoformat()
     conn = get_conn()
@@ -135,12 +135,10 @@ def create_search_run(
     cur.execute(
         """
         INSERT INTO search_runs
-            (run_at, query_origin, query_destination, query_depart_date, query_return_date,
-             target_url, usd_krw_rate)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+            (run_at, query_origin, query_destination, query_depart_date, target_url)
+        VALUES (%s, %s, %s, %s, %s)
         """,
-        (run_at, query_origin, query_destination, query_depart_date, query_return_date,
-         target_url, usd_krw_rate),
+        (run_at, query_origin, query_destination, query_depart_date, target_url),
     )
     run_id = cur.lastrowid
     conn.commit()
@@ -568,6 +566,25 @@ def get_market_context(context_date: str) -> dict | None:
     cur.close()
     conn.close()
     return row
+
+
+def get_latest_krw_usd_rate() -> float | None:
+    """market_context에 저장된 가장 최근 krw_usd_rate를 반환한다.
+    app.py가 매 검색마다 환율 API를 다시 호출하지 않고 이 값을 재사용한다."""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT krw_usd_rate FROM market_context
+        WHERE krw_usd_rate IS NOT NULL
+        ORDER BY context_date DESC
+        LIMIT 1
+        """
+    )
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return float(row[0]) if row else None
 
 
 if __name__ == "__main__":
