@@ -570,7 +570,7 @@ def get_market_context(context_date: str) -> dict | None:
 
 def get_latest_krw_usd_rate() -> float | None:
     """market_context에 저장된 가장 최근 krw_usd_rate를 반환한다.
-    app.py가 매 검색마다 환율 API를 다시 호출하지 않고 이 값을 재사용한다."""
+    scraper.py가 매 검색마다 환율 API를 다시 호출하지 않고 이 값을 재사용한다."""
     conn = get_conn()
     cur = conn.cursor()
     cur.execute(

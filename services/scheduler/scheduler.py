@@ -1,5 +1,5 @@
 """
-routes + tracked_dates 테이블을 기준으로 app.py를 반복 실행하는 상시 스케줄러.
+routes + tracked_dates 테이블을 기준으로 scraper.py를 반복 실행하는 상시 스케줄러.
 
 확장 설계 원칙:
 - 추적할 노선을 코드에 하드코딩하지 않고 routes 테이블에서 매 SYNC_INTERVAL_SECONDS
@@ -17,7 +17,7 @@ from pathlib import Path
 import shared.db as db
 import shared.market_context as market_context
 
-APP_PATH = Path(__file__).parent / "app.py"
+APP_PATH = Path(__file__).parent / "scraper.py"
 HORIZON_DAYS = 365
 DAY_SECONDS = 24 * 3600
 JITTER_SECONDS = 20
@@ -38,7 +38,7 @@ def run_once(origin: str, destination: str, flight_date: str) -> bool:
     if proc.stdout:
         print(proc.stdout.strip())
     if proc.returncode != 0:
-        print(f"[!] app.py 비정상 종료 (returncode={proc.returncode}): "
+        print(f"[!] scraper.py 비정상 종료 (returncode={proc.returncode}): "
               f"{origin}->{destination} {flight_date}")
         if proc.stderr:
             print(proc.stderr[-2000:])
