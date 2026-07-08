@@ -43,6 +43,7 @@ services:
       EIA_API_KEY: ${EIA_API_KEY}
     volumes:
       - playwright_profile:/app/playwright_profile
+      - ./debug_captures:/app/debug_captures
 
   api:
     build:

@@ -15,6 +15,14 @@ import shared.db as db
 
 # ── 설정값 ────────────────────────────────────────────────────────────────
 
+DEBUG_DIR = Path("./debug_captures")
+CONSENT_BUTTON_SELECTORS = (
+    'button:has-text("Accept all")',
+    'button:has-text("I agree")',
+    'form[action*="consent"] button',
+    'button[aria-label*="Accept"]',
+)
+
 USER_DATA_DIR = Path("./playwright_profile")
 
 
@@ -394,6 +402,46 @@ async def scroll_through_results(
     await wait_for_network_quiet(last_activity_ref, quiet_seconds=quiet_seconds, max_wait_seconds=max_wait_seconds)
 
 
+async def dump_debug_state(page, route: str, date: str, reason: str) -> None:
+    """실패/0건 상황에서 실제로 어떤 화면을 받고 있었는지 확인하기 위한
+    스크린샷 + HTML 덤프."""
+    try:
+        DEBUG_DIR.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        prefix = DEBUG_DIR / f"{route}_{date}_{reason}_{ts}"
+
+        try:
+            await page.screenshot(path=str(prefix.with_suffix(".png")), full_page=True)
+        except Exception as e:
+            print(f"[debug] 스크린샷 실패: {e}")
+
+        try:
+            html = await page.content()
+            prefix.with_suffix(".html").write_text(html, encoding="utf-8")
+        except Exception as e:
+            print(f"[debug] HTML 덤프 실패: {e}")
+
+        print(f"[debug] 현재 URL: {page.url}")
+        print(f"[debug] 캡처 저장: {prefix}.png / .html")
+    except Exception as e:
+        print(f"[debug] 덤프 자체 실패: {e}")
+
+
+async def handle_consent(page) -> bool:
+    """구글 쿠키 동의 화면이 뜬 경우 자동으로 수락 버튼을 클릭한다."""
+    for sel in CONSENT_BUTTON_SELECTORS:
+        try:
+            btn = page.locator(sel).first
+            if await btn.is_visible(timeout=2000):
+                await btn.click()
+                await page.wait_for_load_state("networkidle", timeout=15_000)
+                print(f"[*] 동의 화면 감지 및 처리 완료 (selector={sel!r})")
+                return True
+        except Exception:
+            continue
+    return False
+
+
 # ── 메인 로직 ────────────────────────────────────────────────────────────
 
 async def main() -> None:
@@ -505,6 +553,11 @@ async def main() -> None:
 
         print(f"[*] 페이지 접속 중: {target_url}")
         await page.goto(target_url, wait_until="networkidle", timeout=60_000)
+
+        consent_handled = await handle_consent(page)
+        if consent_handled:
+            await page.wait_for_timeout(2000)
+
         await wait_for_network_quiet(last_activity, quiet_seconds=3.0, max_wait_seconds=25.0)
 
         print("[*] Other flights 가격 지연 조회를 위해 스크롤 진행 중...")
@@ -567,6 +620,10 @@ async def main() -> None:
             print(f"[+] Cheapest 탭 병합 완료 (누적 {len(offers_store)}개)")
         except Exception as e:
             print(f"[!] Cheapest 탭 클릭 실패: {type(e).__name__}: {e}")
+            await dump_debug_state(page, args.origin + args.destination, args.depart, "cheapest_tab_fail")
+
+        if not offers_store:
+            await dump_debug_state(page, args.origin + args.destination, args.depart, "zero_offers")
 
         await context.close()
 
